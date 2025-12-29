@@ -15,9 +15,9 @@ def create_data(modulus):
     return data_list
 data=create_data(MODULUS)
 random.shuffle(data)
-split_ratio=0.5
+split_ratio=0.8
 train_len = round(len(data)*split_ratio)
-val_len = len(data)-train_len
+# train_len = 10
 train_data=data[:train_len]
 val_data=data[train_len:]
 class GrokkingDataset(Dataset):
@@ -36,7 +36,7 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.embedding = nn.Embedding(MODULUS+3,128)
-        self.positional_embedding = nn.Parameter(torch.randn(1,4,128))
+        self.positional_embedding = nn.Parameter(torch.randn(1,4,128)*0.01)
         transformer_layer = nn.TransformerEncoderLayer(
             d_model=128,
             nhead=4,
@@ -60,10 +60,10 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 model = Net()
 model.to(device)
-weight_decay=1e-2
-EPOCHS=100
+weight_decay=0.0
+EPOCHS=200
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.03, weight_decay=weight_decay)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.006, weight_decay=weight_decay)
 for epoch in range(EPOCHS):
     for x,y in train_loader:
         optimizer.zero_grad()
