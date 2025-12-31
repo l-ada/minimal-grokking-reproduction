@@ -4,6 +4,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Subset
 from dataset import setup_dataset, GrokkingDataset
 from model import Net
+from tqdm.auto import tqdm
 from viz import plot_results
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SEED=42
@@ -35,8 +36,9 @@ def train(config):
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
     criterion = nn.CrossEntropyLoss()
     optimizer = setup_optimizer(model, config)
-
-    for epoch in range(num_epochs):
+    pbar = tqdm(range(num_epochs), desc="Training Progress")
+    for epoch in pbar:
+        model.train()
         running_loss = 0.0
         correct_train = 0
         total_train = 0
@@ -84,12 +86,14 @@ def train(config):
         history['train_acc'].append(epoch_train_acc)
         history['val_loss'].append(epoch_val_loss)
         history['val_acc'].append(epoch_val_acc)
-        status = f"Epoch {epoch:05d} | Loss: {epoch_train_loss:.4e} | Val Acc: {epoch_val_acc:.4f}"
         if epoch % 100 == 0:
         # Update the plot file every epoch
         #   plot_results(history)
             pass
-        print(status, end='\r')
+        pbar.set_postfix({
+            'loss': f"{epoch_train_loss:.4e}",
+            'val_acc': f"{epoch_val_acc:.4f}"
+        })
 
 
 config = {'batch_size': 10000, 'num_epochs': 14000, 'lr': 0.0005,
