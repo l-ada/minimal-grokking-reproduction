@@ -83,6 +83,9 @@ def train(config):
         epoch_val_acc = correct_val / total_val
 
         # --- DATA COLLECTION & LOGGING ---
+        parameter_distance = 0
+        for init_param, param in zip(initial_params, model.parameters()):
+            parameter_distance += torch.norm(init_param - param).item()
         history['train_loss'].append(epoch_train_loss)
         history['train_acc'].append(epoch_train_acc)
         history['val_loss'].append(epoch_val_loss)
@@ -91,9 +94,7 @@ def train(config):
         # Update the plot file every epoch
         #   plot_results(history)
             pass
-        parameter_distance = 0
-        for init_param,param in zip(initial_params,model.parameters()):
-            parameter_distance += torch.norm(init_param-param).item()
+
 
         pbar.set_postfix({
             'loss': f"{epoch_train_loss:.4e}",
