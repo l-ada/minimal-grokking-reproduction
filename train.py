@@ -25,6 +25,7 @@ def train(config):
     model = config['model']
     model = model.to(device)
     model.train()
+    initial_params = model.parameters().copy()
     batch_size = config['batch_size']
     train_dataset = config['train_dataset']
     val_dataset = config['val_dataset']
@@ -90,9 +91,14 @@ def train(config):
         # Update the plot file every epoch
         #   plot_results(history)
             pass
+        parameter_distance = 0
+        for init_param,param in zip(initial_params,model.parameters()):
+            parameter_distance += torch.norm(init_param-param).item()
+
         pbar.set_postfix({
             'loss': f"{epoch_train_loss:.4e}",
-            'val_acc': f"{epoch_val_acc:.4f}"
+            'val_acc': f"{epoch_val_acc:.4f}",
+            'parameter_distance' : f"{parameter_distance:.4f}"
         })
 
 
