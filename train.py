@@ -25,7 +25,7 @@ def train(config):
     model = config['model']
     model = model.to(device)
     model.train()
-    initial_params = model.parameters().copy()
+    initial_params = [p.detach.clone() for p in model.parameters()]
     batch_size = config['batch_size']
     train_dataset = config['train_dataset']
     val_dataset = config['val_dataset']
@@ -35,6 +35,7 @@ def train(config):
     learning_rate = config['lr']
     num_epochs = config['num_epochs']
     history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
+    parameter_distance = 0
     criterion = nn.CrossEntropyLoss()
     optimizer = setup_optimizer(model, config)
     pbar = tqdm(range(num_epochs), desc="Training Progress")
@@ -83,10 +84,17 @@ def train(config):
         epoch_val_acc = correct_val / total_val
 
         # --- DATA COLLECTION & LOGGING ---
-        parameter_distance = 0
-        for init_param, param in zip(initial_params, model.parameters()):
-            parameter_distance += torch.norm(init_param - param).item()
-        history['train_loss'].append(epoch_train_loss)
+
+        if epoch % 100 == 0:
+            parameter_distance = 0
+            total_sq_dist = 0.0
+            with torch.no_grad():
+                for init_param, param in zip(initial_params, model.parameters()):
+                    # Sum the squared errors across all layers
+                    total_sq_dist += torch.sum((init_param - param) ** 2).item()
+
+            # The final Euclidean distance
+            parameter_distance = total_sq_dist ** 0.5
         history['train_acc'].append(epoch_train_acc)
         history['val_loss'].append(epoch_val_loss)
         history['val_acc'].append(epoch_val_acc)
