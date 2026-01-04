@@ -2,7 +2,8 @@ from typing import Optional, Callable
 import math
 import torch
 
-
+# code taken from
+# https://github.com/MarlonBecker/MSAM/blob/main/optimizer/adamW_msam.py
 class AdamW_MSAM(torch.optim.Optimizer):
     def __init__(
             self,

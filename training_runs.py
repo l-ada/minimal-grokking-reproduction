@@ -5,44 +5,14 @@ from torch.utils.data import DataLoader, Subset
 from dataset import setup_dataset, GrokkingDataset
 from model import Net
 from tqdm.auto import tqdm
-import math # Required for the bias correction in your MSAM class
-from optimizer import AdamW_MSAM
-from viz import plot_results
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SEED=42
-torch.manual_seed(SEED)
-random.seed(SEED)
-MODULUS=97
-
-train_dataset, val_dataset = setup_dataset(MODULUS)
-indices = list(range(100))
-debug_train_dataset = Subset(train_dataset, indices)
-debug_val_dataset = Subset(val_dataset, indices)
 
 
-def setup_optimizer(model, config):
-    # Extract name, default to 'adamw' if not found
-    opt_name = config.get('optimizer_name', 'adamw').lower()
 
-    params = model.parameters()
-    lr = config['lr']
-    wd = config['weight_decay']
-
-    if opt_name == 'msam':
-        return AdamW_MSAM(
-            params,
-            lr=lr,
-            weight_decay=wd,
-            rho=config.get('rho', 0.05)
-        )
-
-    # Default to standard AdamW
-    return torch.optim.AdamW(params, lr=lr, weight_decay=wd)
-def train(config):
+def train_sharpness(config, device):
     model = config['model']
     model = model.to(device)
     model.train()
-    initial_params = [p.detach().clone() for p in model.parameters()]
+    initial_params = [p.detach.clone() for p in model.parameters()]
     batch_size = config['batch_size']
     train_dataset = config['train_dataset']
     val_dataset = config['val_dataset']
@@ -102,7 +72,7 @@ def train(config):
 
         # --- DATA COLLECTION & LOGGING ---
 
-        if epoch % 25 == 0:
+        if epoch % 100 == 0:
             parameter_distance = 0
             total_sq_dist = 0.0
             with torch.no_grad():
@@ -123,27 +93,6 @@ def train(config):
 
         pbar.set_postfix({
             'loss': f"{epoch_train_loss:.4e}",
-            'train_acc': f"{epoch_train_acc:4f}",
             'val_acc': f"{epoch_val_acc:.4f}",
             'parameter_distance' : f"{parameter_distance:.4f}"
         })
-
-
-config = {'batch_size': 10000, 'num_epochs': 14000, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'train_dataset': train_dataset, 'val_dataset': val_dataset}
-debug_config = {'batch_size': 10000, 'num_epochs': 2, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'optimizer_name': "msam",
-          'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
-overfit_config = {'batch_size': 10000, 'num_epochs': 100, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'optimizer_name': "msam",
-          'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
-overfit_config_adamw = {'batch_size': 10000, 'num_epochs': 100, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'optimizer_name': "adamw",
-          'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
-train(debug_config)
-train(overfit_config)
-train(overfit_config_adamw)
