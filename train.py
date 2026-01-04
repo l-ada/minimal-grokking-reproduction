@@ -5,6 +5,8 @@ from torch.utils.data import DataLoader, Subset
 from dataset import setup_dataset, GrokkingDataset
 from model import Net
 from tqdm.auto import tqdm
+import math # Required for the bias correction in your MSAM class
+from optimizer import AdamW_MSAM
 from viz import plot_results
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SEED=42
@@ -19,8 +21,23 @@ debug_val_dataset = Subset(val_dataset, indices)
 
 
 def setup_optimizer(model, config):
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config['lr'], weight_decay=config['weight_decay'])
-    return optimizer
+    # Extract name, default to 'adamw' if not found
+    opt_name = config.get('optimizer_name', 'adamw').lower()
+
+    params = model.parameters()
+    lr = config['lr']
+    wd = config['weight_decay']
+
+    if opt_name == 'msam':
+        return AdamW_MSAM(
+            params,
+            lr=lr,
+            weight_decay=wd,
+            rho=config.get('rho', 0.05)
+        )
+
+    # Default to standard AdamW
+    return torch.optim.AdamW(params, lr=lr, weight_decay=wd)
 def train(config):
     model = config['model']
     model = model.to(device)
@@ -116,5 +133,6 @@ config = {'batch_size': 10000, 'num_epochs': 14000, 'lr': 0.0005,
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
 debug_config = {'batch_size': 10000, 'num_epochs': 10, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
+          'optimizer_name': "msam",
           'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
 train(debug_config)
