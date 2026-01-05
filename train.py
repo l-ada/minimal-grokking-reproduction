@@ -1,5 +1,6 @@
 import random
 import torch
+import numpy as np
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 from dataset import setup_dataset, GrokkingDataset
@@ -8,6 +9,7 @@ from tqdm.auto import tqdm
 import math # Required for the bias correction in your MSAM class
 from optimizer import AdamW_MSAM
 from viz import plot_results
+from utils import save_run
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SEED=42
 torch.manual_seed(SEED)
@@ -35,7 +37,8 @@ def setup_optimizer(model, config):
             weight_decay=wd,
             rho=config.get('rho', 0.05)
         )
-
+    if opt_name == 'sgd':
+        return torch.optim.SGD(params, lr=lr, weight_decay=wd)
     # Default to standard AdamW
     return torch.optim.AdamW(params, lr=lr, weight_decay=wd)
 def train(config):
@@ -48,10 +51,10 @@ def train(config):
     val_dataset = config['val_dataset']
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
-    weight_decay = config['weight_decay']
-    learning_rate = config['lr']
+
     num_epochs = config['num_epochs']
-    history = {'train_loss': [], 'val_loss': [], 'train_acc': [], 'val_acc': []}
+    history = {'train_loss': [], 'val_loss': [],
+                'train_acc': [], 'val_acc': [], 'param_distance': [], 'stopping_time': None}
     parameter_distance = 0
     criterion = nn.CrossEntropyLoss()
     optimizer = setup_optimizer(model, config)
@@ -80,13 +83,12 @@ def train(config):
         epoch_train_loss = running_loss / len(train_loader)
         epoch_train_acc = correct_train / total_train
 
-        # --- VALIDATION PHASE (The part you requested) ---
         model.eval()
         val_running_loss = 0.0
         correct_val = 0
         total_val = 0
 
-        with torch.no_grad():  # Saves memory/time by not tracking gradients
+        with torch.no_grad(): 
             for x_v, y_v in val_loader:
                 x_v, y_v = x_v.to(device), y_v.to(device)
                 y_v_pred = model(x_v)
@@ -99,7 +101,10 @@ def train(config):
 
         epoch_val_loss = val_running_loss / len(val_loader)
         epoch_val_acc = correct_val / total_val
-
+        if history['stopping_time'] is None and epoch_val_acc == 1.0:
+            print(f"Validation accuracy reached 100% at epoch {epoch}!")
+            history['stopping_time'] = epoch
+            # break # Uncomment to stop training when val acc hits 100%
         # --- DATA COLLECTION & LOGGING ---
 
         if epoch % 25 == 0:
@@ -115,9 +120,10 @@ def train(config):
         history['train_acc'].append(epoch_train_acc)
         history['val_loss'].append(epoch_val_loss)
         history['val_acc'].append(epoch_val_acc)
+        history['param_distance'].append(parameter_distance)
         if epoch % 100 == 0:
         # Update the plot file every epoch
-        #   plot_results(history)
+            # plot_results(history)
             pass
 
 
@@ -125,25 +131,22 @@ def train(config):
             'loss': f"{epoch_train_loss:.4e}",
             'train_acc': f"{epoch_train_acc:4f}",
             'val_acc': f"{epoch_val_acc:.4f}",
-            'parameter_distance' : f"{parameter_distance:.4f}"
-        })
-
-
-config = {'batch_size': 10000, 'num_epochs': 14000, 'lr': 0.0005,
+            'par_dist' : f"{parameter_distance:.4f}"
+                })
+    save_run(config, history)
+# groks around epoch 980
+config = {'batch_size': 10000, 'num_epochs': 1100, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
+          'train_dataset': train_dataset, 'val_dataset': val_dataset}
+config_wd = {'batch_size': 10000, 'num_epochs': 1100, 'lr': 0.0005,
+          'weight_decay': 1.0, 'model': Net(MODULUS),
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
 debug_config = {'batch_size': 10000, 'num_epochs': 2, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
-          'optimizer_name': "msam",
-          'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
-overfit_config = {'batch_size': 10000, 'num_epochs': 100, 'lr': 0.0005,
+          'train_dataset': train_dataset, 'val_dataset': val_dataset}
+overfit_config = {'batch_size': 10000, 'num_epochs': 1000, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
-          'optimizer_name': "msam",
           'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
-overfit_config_adamw = {'batch_size': 10000, 'num_epochs': 100, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'optimizer_name': "adamw",
-          'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
-train(debug_config)
-train(overfit_config)
-train(overfit_config_adamw)
+if __name__ == "__main__":
+    train(config)
+    train(config_wd)
