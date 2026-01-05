@@ -1,0 +1,9 @@
+- ASAM adaptive sharpness
+- MSAM momentum sharpness
+ In terms of ASAM I would also like to plot sharpness later.
+
+- APO amortized proximal optimization
+- L2 loss instead of cross entropy
+- plain SGD without momentum or with small momentum
+- no transformer
+- replace embedding with cosine?, check if it's finding cosine

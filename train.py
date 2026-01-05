@@ -107,7 +107,7 @@ def train(config):
             # break # Uncomment to stop training when val acc hits 100%
         # --- DATA COLLECTION & LOGGING ---
 
-        if epoch % 25 == 0:
+        if epoch % 100 == 0:
             parameter_distance = 0
             total_sq_dist = 0.0
             with torch.no_grad():
@@ -139,8 +139,12 @@ config = {'batch_size': 10000, 'num_epochs': 1100, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
 config_wd = {'batch_size': 10000, 'num_epochs': 1100, 'lr': 0.0005,
-          'weight_decay': 1.0, 'model': Net(MODULUS),
+          'weight_decay': 1.5, 'model': Net(MODULUS),
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
+config_wd2 = {'batch_size': 10000, 'num_epochs': 2000, 'lr': 0.001,
+          'weight_decay': 1.5, 'model': Net(MODULUS),
+          'train_dataset': train_dataset, 'val_dataset': val_dataset}
+
 debug_config = {'batch_size': 10000, 'num_epochs': 2, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
@@ -148,5 +152,6 @@ overfit_config = {'batch_size': 10000, 'num_epochs': 1000, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
           'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
 if __name__ == "__main__":
-    train(config)
-    train(config_wd)
+    # train(config)
+    # train(config_wd)
+    train(config_wd2)
