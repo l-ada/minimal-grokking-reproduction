@@ -7,7 +7,7 @@ from dataset import setup_dataset, GrokkingDataset
 from model import Net
 from tqdm.auto import tqdm
 import math # Required for the bias correction in your MSAM class
-from optimizer import AdamW_MSAM
+from optimizer import AdamW_MSAM, SAM
 from viz import plot_results
 from utils import save_run
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,7 +29,7 @@ def setup_optimizer(model, config):
     params = model.parameters()
     lr = config['lr']
     wd = config['weight_decay']
-
+    rho = config.get('rho', 0.05)
     if opt_name == 'msam':
         return AdamW_MSAM(
             params,
@@ -37,6 +37,22 @@ def setup_optimizer(model, config):
             weight_decay=wd,
             rho=config.get('rho', 0.05)
         )
+    if opt_name == 'sam':
+        return SAM(
+            params,
+            base_optimizer=torch.optim.SGD,
+            lr=lr,
+            weight_decay=wd,
+            rho=rho
+        )
+    if opt_name == 'asam':
+            return SAM(
+                params,
+                lr=lr,
+                weight_decay=wd,
+                rho=rho,
+                adaptive=True
+            )
     if opt_name == 'sgd':
         return torch.optim.SGD(params, lr=lr, weight_decay=wd)
     # Default to standard AdamW
@@ -66,11 +82,22 @@ def train(config):
         total_train = 0
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
+            
             optimizer.zero_grad()
             y_pred = model(x)
             loss = criterion(y_pred, y)
             loss.backward()
-            optimizer.step()
+
+            if config.get('optimizer_name') == 'sam':
+                def closure():
+                    optimizer.zero_grad()
+                    output = model(x)
+                    loss_c = criterion(output, y)
+                    loss_c.backward()
+                    return loss_c
+                optimizer.step(closure)
+            else:
+                optimizer.step()
 
             # print(f"Epoch {epoch} | Loss: {loss.item():.4f}") # Commented out to reduce output verbosity
             # Data Collection
@@ -146,11 +173,14 @@ config_wd2 = {'batch_size': 10000, 'num_epochs': 2000, 'lr': 0.001,
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
 
 debug_config = {'batch_size': 10000, 'num_epochs': 2, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
+          'weight_decay': 2.0, 'model': Net(MODULUS), 'optimizer_name': 'sam', 'rho': 0.05,
           'train_dataset': train_dataset, 'val_dataset': val_dataset}
 overfit_config = {'batch_size': 10000, 'num_epochs': 1000, 'lr': 0.0005,
           'weight_decay': 2.0, 'model': Net(MODULUS),
           'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
+
+
+
 if __name__ == "__main__":
     # train(config)
     # train(config_wd)
