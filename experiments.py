@@ -12,3 +12,5 @@ class TrainConfig:
     run_name: str = ""
     # model
     # dataset/dataloader
+    #tags/comments 
+    comments: str = ""
