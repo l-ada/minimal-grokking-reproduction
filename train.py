@@ -10,16 +10,13 @@ import math # Required for the bias correction in your MSAM class
 from optimizer import AdamW_MSAM, SAM
 from viz import plot_results
 from utils import save_run
+from experiments import registry
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 SEED=42
 torch.manual_seed(SEED)
 random.seed(SEED)
-MODULUS=97
 
-train_dataset, val_dataset = setup_dataset(MODULUS)
-indices = list(range(100))
-debug_train_dataset = Subset(train_dataset, indices)
-debug_val_dataset = Subset(val_dataset, indices)
+
 
 
 def setup_optimizer(model, config):
@@ -58,17 +55,25 @@ def setup_optimizer(model, config):
     # Default to standard AdamW
     return torch.optim.AdamW(params, lr=lr, weight_decay=wd)
 def train(config):
-    model = config['model']
+    MODULUS = config.get('modulus', 97)
+    train_dataset, val_dataset = setup_dataset(MODULUS)
+    indices = list(range(100))
+
+    model = Net(MODULUS)
     model = model.to(device)
     model.train()
     initial_params = [p.detach().clone() for p in model.parameters()]
     batch_size = config['batch_size']
-    train_dataset = config['train_dataset']
-    val_dataset = config['val_dataset']
+    is_overfit = config.get('is_overfit', False)
+
+    if config.get('is_debug') or config.get('is_overfit'):
+        indices = list(range(100)) # Use a small subset
+        train_dataset = Subset(train_dataset, indices)
+        val_dataset = Subset(val_dataset, indices)
+        num_epochs = config['num_epochs']
+
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
-
-    num_epochs = config['num_epochs']
     history = {'train_loss': [], 'val_loss': [],
                 'train_acc': [], 'val_acc': [], 'param_distance': [], 'stopping_time': None}
     parameter_distance = 0
@@ -162,26 +167,17 @@ def train(config):
                 })
     save_run(config, history)
 # groks around epoch 980
-config = {'batch_size': 10000, 'num_epochs': 1100, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'train_dataset': train_dataset, 'val_dataset': val_dataset}
-config_wd = {'batch_size': 10000, 'num_epochs': 1100, 'lr': 0.0005,
-          'weight_decay': 1.5, 'model': Net(MODULUS),
-          'train_dataset': train_dataset, 'val_dataset': val_dataset}
-config_wd2 = {'batch_size': 10000, 'num_epochs': 2000, 'lr': 0.001,
-          'weight_decay': 1.5, 'model': Net(MODULUS),
-          'train_dataset': train_dataset, 'val_dataset': val_dataset}
 
-debug_config = {'batch_size': 10000, 'num_epochs': 2, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS), 'optimizer_name': 'sam', 'rho': 0.05,
-          'train_dataset': train_dataset, 'val_dataset': val_dataset}
-overfit_config = {'batch_size': 10000, 'num_epochs': 1000, 'lr': 0.0005,
-          'weight_decay': 2.0, 'model': Net(MODULUS),
-          'train_dataset': debug_train_dataset, 'val_dataset': debug_val_dataset}
 
 
 
 if __name__ == "__main__":
-    # train(config)
-    # train(config_wd)
-    train(config_wd2)
+    experiment_to_run = "adamw"  # Change this to run different experiments
+
+    # Grab from registry and convert to dict for the train function
+    config_obj = registry[experiment_to_run]().make_debug()
+
+    # Optional: chain the modifiers here
+    # config_obj = config_obj.make_overfit() 
+
+    train(config_obj.to_dict())

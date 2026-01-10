@@ -1,0 +1,36 @@
+{
+    "config": {
+        "optimizer_name": "adamw",
+        "lr": 0.0005,
+        "weight_decay": 2.0,
+        "rho": 0.05,
+        "num_epochs": 2,
+        "batch_size": 10000,
+        "modulus": 97,
+        "seed": 42,
+        "run_name": "DEBUG_",
+        "comments": "",
+        "is_debug": true,
+        "is_overfit": false
+    },
+    "history": {
+        "train_loss": [],
+        "val_loss": [
+            4.675104141235352,
+            4.696089267730713
+        ],
+        "train_acc": [
+            0.01,
+            0.02
+        ],
+        "val_acc": [
+            0.01,
+            0.01
+        ],
+        "param_distance": [
+            0.5344088431397582,
+            0.5344088431397582
+        ],
+        "stopping_time": null
+    }
+}
